@@ -45,9 +45,11 @@ valid_ci(99.0) -> 5;
 valid_ci(99.5) -> 6;
 valid_ci(_) -> error(badarg).
 
+student_inf() ->
+	{	1.282,	1.645,	1.960,	2.326,	2.576,	3.090  }. %%  inf 
+
 student() ->
   {
-	{	1.282,	1.645,	1.960,	2.326,	2.576,	3.090  }, %%  inf 
 	{	3.078,	6.314,	12.706,	31.821,	63.657,	318.313  }, %%  1. 
 	{	1.886,	2.920,	4.303,	6.965,	9.925,	22.327  }, %%  2. 
 	{	1.638,	2.353,	3.182,	4.541,	5.841,	10.215  }, %%  3. 
@@ -150,7 +152,7 @@ student() ->
 	{	1.290,	1.660,	1.984,	2.364,	2.626,	3.174  } %%  100. 
   }.
 
-student_lookup(I) when I > ?NSTUDENT -> element(0, student());
+student_lookup(I) when I > ?NSTUDENT -> student_inf();
 student_lookup(I) -> element(I, student()).
 
 symbol() ->
