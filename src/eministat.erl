@@ -7,8 +7,8 @@
 
 %% Two basic test data sets
 -export([
-	chameleon/0,
-	iguana/0
+	chameleon/0, iguana/0,
+	ligustrum_sun/0, ligustrum_shade/0
 ]).
 
 %% Data sets in eministat are these beasts
@@ -228,3 +228,9 @@ chameleon() ->
     
 iguana() ->
     ds_from_list("iguana", [50, 200, 150, 400, 750, 400, 150]).
+
+ligustrum_sun() ->
+    ds_from_list("sun", [150, 100, 210, 300, 200, 210, 300]).
+    
+ligustrum_shade() ->
+    ds_from_list("shade", [120, 125, 160, 130, 200, 170, 200]).
