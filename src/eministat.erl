@@ -200,15 +200,18 @@ std_dev(Ds) -> math:sqrt(variance(Ds)).
 vitals_bootstrapped(Ds, Flag, CI) ->
     BDs = bootstrap(?ROUNDS, Ds),
     io:format("Dataset: ~c N=~B CI=~g\n", [element(Flag, symbol()), Ds#dataset.n, CI]),
-    io:format("Statistic     Value     (bootstrapped SD)\n"),
+    io:format("Statistic     Value     [     Bias] (SE)\n"),
     io:format("Min:      ~13.8g\n", [min(Ds)]),
-    SDMedian = boot_result(fun median/1, BDs),
-    io:format("Median:   ~13.8g (± ~g)\n", [median(Ds), SDMedian]),
+    {AvgMedian, SDMedian} = boot_result(fun median/1, BDs),
+    Median = median(Ds),
+    io:format("Median:   ~13.8g [~9.4g] (± ~g)\n", [Median, AvgMedian - Median, SDMedian]),
     io:format("Max:      ~13.8g\n", [max(Ds)]),
-    SDAverage = boot_result(fun average/1, BDs),
-    io:format("Average:  ~13.8g (± ~g)\n", [average(Ds), SDAverage]),
-    SDStdDev = boot_result(fun std_dev/1, BDs),
-    io:format("Std. Dev: ~13.8g (± ~g)\n", [std_dev(Ds), SDStdDev]),
+    {AvgAverage, SDAverage} = boot_result(fun average/1, BDs),
+    Average = average(Ds),
+    io:format("Average:  ~13.8g [~9.4g] (± ~g)\n", [Average, AvgAverage - Average, SDAverage]),
+    {AvgStdDev, SDStdDev} = boot_result(fun std_dev/1, BDs),
+    StdDev = std_dev(Ds),
+    io:format("Std. Dev: ~13.8g [~9.4g] (± ~g)\n", [StdDev, AvgStdDev - StdDev, SDStdDev]),
     io:format("\n"),
     ok.
 
@@ -227,7 +230,7 @@ draw(K, N, Tuple) ->
 boot_result(Fun, Ds) ->
     Resamples = lists:sort([Fun(D) || D <- Ds]),
     Rs = ds_from_list(resampled, Resamples),
-    std_dev(Rs).
+    {average(Rs), std_dev(Rs)}.
 
 relative(#dataset { n = DsN } = Ds, #dataset { n = RsN } = Rs, ConfIdx) ->
     I = DsN + RsN - 2,
