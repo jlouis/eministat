@@ -2,13 +2,15 @@
 
 -export([
 	ds_from_list/2,
+	s/3,
 	x/3
 ]).
 
 %% Two basic test data sets
 -export([
 	chameleon/0, iguana/0,
-	ligustrum_sun/0, ligustrum_shade/0
+	ligustrum_sun/0, ligustrum_shade/0,
+	reverse_1/0, reverse_2/0
 ]).
 
 %% Data sets in eministat are these beasts
@@ -408,6 +410,14 @@ r(CI, Ds, [Rs | Next], I) ->
     r(CI, Ds, Next, I+1);
 r(_, _, _, _) -> ok.
 
+s(Name, F, Samples) ->
+    ds_from_list(Name, s(F, Samples)).
+    
+s(_F, 0) -> [];
+s(F, K) ->
+    [element(1, timer:tc(F)) | s(F,K-1)].
+    
+
 chameleon() ->
     ds_from_list("chameleon", [150, 400, 720, 500, 930]).
 
@@ -419,3 +429,16 @@ ligustrum_sun() ->
 
 ligustrum_shade() ->
     ds_from_list("shade", [120, 125, 160, 130, 200, 170, 200]).
+
+reverse_1() ->
+    L = lists:seq(1, 100000),
+    s("lists:reverse/1", fun() -> lists:reverse(L) end, 50).
+
+reverse_2() ->
+    L = lists:seq(1, 100000),
+    s("tail_reverse/1", fun() -> tail_reverse(L) end, 50).
+
+tail_reverse(L) -> tail_reverse(L, []).
+
+tail_reverse([], Acc) -> Acc;
+tail_reverse([X | Xs], Acc) -> tail_reverse(Xs, [X | Acc]).
