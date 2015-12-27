@@ -1,0 +1,5 @@
+.eministat.plt
+ebin/*.app
+ebin/*.beam
+*.beam
+*.d
