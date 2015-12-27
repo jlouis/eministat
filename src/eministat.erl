@@ -34,7 +34,8 @@
 	x0 :: float()
 }).
 
--define(EPSILON, 0.0000001).
+-define(EPSILON, 0.0000001). %% Epsilon value for floating point comparisons
+-define(ROUNDS, 100000). %% Bootstrap resampling count
 -define(NSTUDENT, 100). %% Number of elements in the students distribution lookup table
 -define(MAX_DS, 8).
 
@@ -196,12 +197,37 @@ variance(#dataset { n = N, sy = SY, syy = SYY }) ->
 
 std_dev(Ds) -> math:sqrt(variance(Ds)).
 
-vitals_head() ->
-    io:format("    N           Min           Max        Median           Avg        Stddev\n").
+vitals_bootstrapped(Ds, Flag, CI) ->
+    BDs = bootstrap(?ROUNDS, Ds),
+    io:format("Dataset: ~c N=~B CI=~g\n", [element(Flag, symbol()), Ds#dataset.n, CI]),
+    io:format("Statistic     Value     (bootstrapped SD)\n"),
+    io:format("Min:      ~13.8g\n", [min(Ds)]),
+    SDMedian = boot_result(fun median/1, BDs),
+    io:format("Median:   ~13.8g (± ~g)\n", [median(Ds), SDMedian]),
+    io:format("Max:      ~13.8g\n", [max(Ds)]),
+    SDAverage = boot_result(fun average/1, BDs),
+    io:format("Average:  ~13.8g (± ~g)\n", [average(Ds), SDAverage]),
+    SDStdDev = boot_result(fun std_dev/1, BDs),
+    io:format("Std. Dev: ~13.8g (± ~g)\n", [std_dev(Ds), SDStdDev]),
+    io:format("\n"),
+    ok.
 
-vitals(Ds, Flag) ->
-    io:format("~c ~3B ~13.8g ~13.8g ~13.8g ~13.8g ~13.8g~n",
-        [element(Flag, symbol()), Ds#dataset.n, min(Ds), max(Ds), median(Ds), average(Ds), std_dev(Ds)]).
+bootstrap(Rounds, #dataset { n = N, points = Ps }) ->
+    boot(Rounds, N, list_to_tuple(Ps), []).
+    
+boot(0, _, _, Acc) -> Acc;
+boot(K, N, Ps, Acc) ->
+    Points = draw(N, N, Ps),
+    boot(K-1, N, Ps, [ds_from_list(K, Points) | Acc]).
+
+draw(0, _, _) -> [];
+draw(K, N, Tuple) ->
+    [element(rand:uniform(N), Tuple) | draw(K-1, N, Tuple)].
+
+boot_result(Fun, Ds) ->
+    Resamples = lists:sort([Fun(D) || D <- Ds]),
+    Rs = ds_from_list(resampled, Resamples),
+    std_dev(Rs).
 
 relative(#dataset { n = DsN } = Ds, #dataset { n = RsN } = Rs, ConfIdx) ->
     I = DsN + RsN - 2,
@@ -346,10 +372,10 @@ x(CI, #dataset{} = Ds0, #dataset{} = Ds1) ->
 x(CI, #dataset{} = Ds0, L) when is_list(L) ->
     case lists:all(fun(D) -> is_record(D, dataset) end, L) of
         true ->
-            Idx = valid_ci(CI),
+            valid_ci(CI),
             h([Ds0 | L]),
             p(74, [Ds0 | L]),
-            r(Idx, Ds0, L);
+            r(CI, Ds0, L);
         false ->
             error(badarg)
     end.
@@ -369,13 +395,12 @@ p(TermWidth, DSs) ->
     plot_dump(Plotted).
 
 r(CI, Ds, DSs) ->
-    vitals_head(),
-    vitals(Ds, 1),
+    vitals_bootstrapped(Ds, 1, CI),
     r(CI, Ds, DSs, 1).
 
 r(CI, Ds, [Rs | Next], I) ->
-    vitals(Rs, I+1),
-    relative(Rs, Ds, CI),
+    vitals_bootstrapped(Rs, I+1, CI),
+    relative(Rs, Ds, valid_ci(CI)),
 
     r(CI, Ds, Next, I+1);
 r(_, _, _, _) -> ok.
