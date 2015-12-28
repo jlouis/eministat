@@ -90,9 +90,6 @@ And finally, we can ask `eministat` if there is any difference between the data 
 	1st Qu.       285.00000
 	Median:       346.00000 [   -1.563] (± 28.3694)
 	3rd Qu.       740.00000
-	90th          958.00000
-	95th          1349.0000
-	99th          2388.0000
 	Max:          2388.0000
 	Average:      533.26000 [-5.954e-2] (± 62.5871)
 	Std. Dev:     448.29863 [   -15.59] (± 98.5641)
@@ -104,9 +101,6 @@ And finally, we can ask `eministat` if there is any difference between the data 
 	1st Qu.       845.00000
 	Median:       1274.0000 [    2.540] (± 124.018)
 	3rd Qu.       1685.0000
-	90th          1906.0000
-	95th          2572.0000
-	99th          5114.0000
 	Max:          5114.0000
 	Average:      1416.7400 [   0.1380] (± 111.954)
 	Std. Dev:     796.76860 [   -32.35] (± 194.016)
