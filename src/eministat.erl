@@ -37,7 +37,7 @@
 }).
 
 -define(EPSILON, 0.0000001). %% Epsilon value for floating point comparisons
--define(ROUNDS, 100000). %% Bootstrap resampling count
+-define(ROUNDS, 10000). %% Bootstrap resampling count
 -define(NSTUDENT, 100). %% Number of elements in the students distribution lookup table
 -define(MAX_DS, 8).
 
@@ -201,11 +201,11 @@ variance(#dataset { n = N, sy = SY, syy = SYY }) ->
 
 std_dev(Ds) -> math:sqrt(variance(Ds)).
 
-vitals_bootstrapped(Ds, Flag, CI) ->
+vitals_bootstrapped(#dataset { n = N } = Ds, Flag, CI) ->
     BDs = bootstrap(?ROUNDS, Ds),
     Q1 = percentile(0.25, Ds),
     Q3 = percentile(0.75, Ds),
-    io:format("Dataset: ~c N=~B CI=~g\n", [element(Flag, symbol()), Ds#dataset.n, CI]),
+    io:format("Dataset: ~c N=~B CI=~g\n", [element(Flag, symbol()), N, CI]),
 
     io:format("Statistic     Value     [     Bias] (SE)\n"),
     io:format("Min:      ~13.8g\n", [min(Ds)]),
@@ -225,9 +225,16 @@ vitals_bootstrapped(Ds, Flag, CI) ->
     IQR = Q3 - Q1,
     OutliersB = length([x || P <- Ds#dataset.points, P < (Q1 - 1.5 * IQR)]),
     OutliersT = length([x || P <- Ds#dataset.points, P > (Q3 + 1.5 * IQR)]),
-    io:format("Outliers: ~B + ~B = ~B\n", [OutliersB, OutliersT, OutliersT + OutliersB]),
+    io:format("Outliers: ~B + ~B = ~B (μ=~g, σ=~g)\n", [OutliersB, OutliersT, OutliersT + OutliersB, AvgAverage, AvgStdDev]),
+    {OutVar, Severity} = eministat_analysis:outlier_variance(AvgAverage, AvgStdDev, N),
+    io:format("\tOutlier variance: ~g (~s)\n", [OutVar, format_outlier_variance(Severity)]),
     io:format("\n"),
     ok.
+
+format_outlier_variance(unaffected) -> "not affected by outliers";
+format_outlier_variance(slight) -> "slight";
+format_outlier_variance(moderate) -> "moderate";
+format_outlier_variance(severe) -> "severe, the data set is probably unusable".
 
 bootstrap(Rounds, #dataset { n = N, points = Ps }) ->
     boot(Rounds, N, list_to_tuple(Ps), []).
@@ -451,12 +458,12 @@ ligustrum_shade() ->
     ds_from_list("shade", [120, 125, 160, 130, 200, 170, 200]).
 
 reverse_1() ->
-    L = lists:seq(1, 100000),
-    s("lists:reverse/1", fun() -> lists:reverse(L) end, 50).
+    L = lists:seq(1, 1000000),
+    s("lists:reverse/1", fun() -> lists:reverse(L) end, 10, us).
 
 reverse_2() ->
-    L = lists:seq(1, 100000),
-    s("tail_reverse/1", fun() -> tail_reverse(L) end, 50).
+    L = lists:seq(1, 1000000),
+    s("tail_reverse/1", fun() -> tail_reverse(L) end, 15, us).
 
 tail_reverse(L) -> tail_reverse(L, []).
 
