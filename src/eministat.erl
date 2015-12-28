@@ -191,8 +191,10 @@ max(#dataset { points = Ps }) -> float(lists:last(Ps)).
 
 average(#dataset { n = N, sy = SumY }) -> float(SumY / N).
 
-median(#dataset { n = N, points = Ps }) ->
-    float(lists:nth(round(N / 2), Ps)).
+median(Ds) -> percentile(0.5, Ds).
+
+percentile(P, #dataset { n = N, points = Ps }) ->
+    float(lists:nth(round(N * P), Ps)).
 
 variance(#dataset { n = N, sy = SY, syy = SYY }) ->
     (SYY - SY * SY / N) / (N - 1.0).
@@ -201,12 +203,20 @@ std_dev(Ds) -> math:sqrt(variance(Ds)).
 
 vitals_bootstrapped(Ds, Flag, CI) ->
     BDs = bootstrap(?ROUNDS, Ds),
+    Q1 = percentile(0.25, Ds),
+    Q3 = percentile(0.75, Ds),
     io:format("Dataset: ~c N=~B CI=~g\n", [element(Flag, symbol()), Ds#dataset.n, CI]),
+
     io:format("Statistic     Value     [     Bias] (SE)\n"),
     io:format("Min:      ~13.8g\n", [min(Ds)]),
+    io:format("1st Qu.   ~13.8g\n", [Q1]),
     {AvgMedian, SDMedian} = boot_result(fun median/1, BDs),
     Median = median(Ds),
     io:format("Median:   ~13.8g [~9.4g] (± ~g)\n", [Median, AvgMedian - Median, SDMedian]),
+    io:format("3rd Qu.   ~13.8g\n", [Q3]),
+    io:format("90th      ~13.8g\n", [percentile(0.90, Ds)]),
+    io:format("95th      ~13.8g\n", [percentile(0.95, Ds)]),
+    io:format("99th      ~13.8g\n", [percentile(0.99, Ds)]),
     io:format("Max:      ~13.8g\n", [max(Ds)]),
     {AvgAverage, SDAverage} = boot_result(fun average/1, BDs),
     Average = average(Ds),
@@ -214,6 +224,11 @@ vitals_bootstrapped(Ds, Flag, CI) ->
     {AvgStdDev, SDStdDev} = boot_result(fun std_dev/1, BDs),
     StdDev = std_dev(Ds),
     io:format("Std. Dev: ~13.8g [~9.4g] (± ~g)\n", [StdDev, AvgStdDev - StdDev, SDStdDev]),
+    
+    IQR = Q3 - Q1,
+    OutliersB = length([x || P <- Ds#dataset.points, P < (Q1 - 1.5 * IQR)]),
+    OutliersT = length([x || P <- Ds#dataset.points, P > (Q3 + 1.5 * IQR)]),
+    io:format("Outliers: ~B + ~B = ~B\n", [OutliersB, OutliersT, OutliersT + OutliersB]),
     io:format("\n"),
     ok.
 
@@ -251,8 +266,8 @@ relative(#dataset { n = DsN } = Ds, #dataset { n = RsN } = Rs, ConfIdx) ->
                 [element(ConfIdx, student_pct())]);
         true ->
             io:format("Difference at ~.1f% confidence\n", [element(ConfIdx, student_pct())]),
-            io:format("	~g +/- ~g\n", [D, E]),
-            io:format("	~g% +/- ~g%\n", [D * 100 / average(Rs), E * 100 / average(Rs)]),
+            io:format("	~g ± ~g\n", [D, E]),
+            io:format("	~g% ± ~g%\n", [D * 100 / average(Rs), E * 100 / average(Rs)]),
             io:format("	(Student's t, pooled s = ~g)\n", [Spool])
     end.
 

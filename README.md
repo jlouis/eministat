@@ -70,59 +70,61 @@ This will sample 50 runs of our `tail_reverse/1` function. Likewise, we can grab
 
 And finally, we can ask `eministat` if there is any difference between the data sets:
 
-	10> eministat:x(95.0, Rev1, Rev2).
+	7> eministat:x(95.0, L1, L2). 
 	x lists:reverse/1
 	+ tail_reverse/1
 	+--------------------------------------------------------------------------+
-	|  xxxxx****xx+++    x+  x* x   x x                        x              +|
-	|  xxx x*+**xx+      x   x                                                 |
-	|  xxx  x+**xx                                                             |
-	|  xxx   +*+                                                               |
-	|  x     +*+                                                               |
-	|  x     +*+                                                               |
-	|  x     +*+                                                               |
-	|  x     +*                                                                |
-	|  x     ++                                                                |
-	|        ++                                                                |
-	|        +                                                                 |
-	|        +                                                                 |
-	|        +                                                                 |
-	|        +                                                                 |
-	|        +                                                                 |
-	|        +                                                                 |
-	|        +                                                                 |
-	|        +                                                                 |
-	|        +                                                                 |
-	|        +                                                                 |
-	|        +                                                                 |
-	|        +                                                                 |
-	|        +                                                                 |
-	|        +                                                                 |
-	||________M_A_________|                                                    |
-	| |______M__A________|                                                     |
+	| xxxxxxxx+*+**++++x+++++++++ + x x  +                     +              +|
+	|  xxxx  x+*+xx+ ++ ++++++                                                 |
+	|  xxx    +*+ x+  + +  + +                                                 |
+	|  xxx     *+  +         +                                                 |
+	|  xxx     *             +                                                 |
+	|  xxx     +                                                               |
+	|  xxx     +                                                               |
+	||___M__A_____|                                                            |
+	|        |________M_A___________|                                          |
 	+--------------------------------------------------------------------------+
 	Dataset: x N=50 CI=95.0000
 	Statistic     Value     [     Bias] (SE)
-	Min:          193.00000
-	Median:       606.00000 [   -30.96] (± 72.9374)
-	Max:          3547.0000
-	Average:      718.88000 [   0.1599] (± 87.3505)
-	Std. Dev:     624.04038 [   -19.80] (± 130.632)
-
+	Min:          186.00000
+	1st Qu.       285.00000
+	Median:       346.00000 [   -1.563] (± 28.3694)
+	3rd Qu.       740.00000
+	90th          958.00000
+	95th          1349.0000
+	99th          2388.0000
+	Max:          2388.0000
+	Average:      533.26000 [-5.954e-2] (± 62.5871)
+	Std. Dev:     448.29863 [   -15.59] (± 98.5641)
+	Outliers: 0 + 2 = 2
+	
 	Dataset: + N=50 CI=95.0000
 	Statistic     Value     [     Bias] (SE)
-	Min:          538.00000
-	Median:       593.00000 [   0.7104] (± 13.3612)
-	Max:          4430.0000
-	Average:      732.48000 [  -0.3713] (± 79.6592)
-	Std. Dev:     567.48292 [   -72.03] (± 262.752)
-
-	No difference proven at 95.0% confidence
+	Min:          722.00000
+	1st Qu.       845.00000
+	Median:       1274.0000 [    2.540] (± 124.018)
+	3rd Qu.       1685.0000
+	90th          1906.0000
+	95th          2572.0000
+	99th          5114.0000
+	Max:          5114.0000
+	Average:      1416.7400 [   0.1380] (± 111.954)
+	Std. Dev:     796.76860 [   -32.35] (± 194.016)
+	Outliers: 0 + 2 = 2
+	
+	Difference at 95.0% confidence
+	        883.480 ± 256.514
+	        165.675% ± 48.1030%
+	        (Student's t, pooled s = 646.456)
 	ok
 
-It may come as a surprise we fail to reject the null hypothesis. The reason is that while `Rev2` is slower on average, the overlap in the samples are rather large. So while it is sometimes faster, it is not always the case and in 50 samples, there is no significant difference between the two functions.
+In this case, we are told there is a significant difference between the two runs of about 880μs, with an uncertainty of about 256μs. Hence we can rely on the call to `lists:reverse/1` being faster than a tail recursive variant for lists of size `100000`.
+
+Both datasets have 2 outliers, which are values far from the 
 
 # Usage
+
+To use `eministat`, your data must be normally distributed. You will have to make a reasonable guess that they are, before you can use the mathematics. Once you know that to be the case, you can use `eministat` to analyze your data sets.
 
 The `eministat` application supports 3 major functions:
 
