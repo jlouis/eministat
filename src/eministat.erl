@@ -2,7 +2,7 @@
 
 -export([
 	ds_from_list/2,
-	s/3,
+	s/3, s/4,
 	x/3
 ]).
 
@@ -416,21 +416,29 @@ p(TermWidth, DSs) ->
 
 r(CI, Ds, DSs) ->
     vitals_bootstrapped(Ds, 1, CI),
+    io:format("------\n\n"),
+
     r(CI, Ds, DSs, 1).
 
 r(CI, Ds, [Rs | Next], I) ->
     vitals_bootstrapped(Rs, I+1, CI),
     relative(Rs, Ds, valid_ci(CI)),
-
+    
+    io:format("------\n\n"),
     r(CI, Ds, Next, I+1);
 r(_, _, _, _) -> ok.
 
-s(Name, F, Samples) ->
-    ds_from_list(Name, s(F, Samples)).
+s(Name, F, Samples) -> s(Name, F, Samples, us).
+
+s(Name, F, Samples, us) -> s(Name, F, Samples, fun(X) -> X end);
+s(Name, F, Samples, ms) -> s(Name, F, Samples, fun(X) -> X div 1000 end);
+s(Name, F, Samples, s) -> s(Name, F, Samples, fun(X) -> X div (1000*1000) end);
+s(Name, F, Samples, G) when is_function(G, 1) ->
+    ds_from_list(Name, s_run(F, G, Samples)).
     
-s(_F, 0) -> [];
-s(F, K) ->
-    [element(1, timer:tc(F)) | s(F,K-1)].
+s_run(_F, _G, 0) -> [];
+s_run(F, G, K) ->
+    [G(element(1, timer:tc(F))) | s_run(F,G, K-1)].
     
 
 chameleon() ->
