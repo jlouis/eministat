@@ -8,6 +8,8 @@
 	x/3
 ]).
 
+-export([mean/1, std_dev/1, variance/1]).
+
 %% Two basic test data sets
 -export([
 	chameleon/0, iguana/0,
@@ -183,17 +185,17 @@ min(#dataset { points = Ps }) -> float(hd(Ps)).
 
 max(#dataset { points = Ps }) -> float(lists:last(Ps)).
 
-average(#dataset { n = N, sy = SumY }) -> float(SumY / N).
-
 median(Ds) -> percentile(0.5, Ds).
 
-percentile(P, #dataset { n = N, points = Ps }) ->
-    float(lists:nth(round(N * P), Ps)).
+mean(#dataset { n = N, sy = SY }) -> float(SY / N).
 
 variance(#dataset { n = N, sy = SY, syy = SYY }) ->
     (SYY - SY * SY / N) / (N - 1.0).
 
 std_dev(Ds) -> math:sqrt(variance(Ds)).
+
+percentile(P, #dataset { n = N, points = Ps }) ->
+    float(lists:nth(round(N * P), Ps)).
 
 vitals_bootstrapped(#dataset { n = N } = Ds, Flag, CI) ->
     BDs = bootstrap(?ROUNDS, Ds),
@@ -209,8 +211,8 @@ vitals_bootstrapped(#dataset { n = N } = Ds, Flag, CI) ->
     io:format("Median:   ~13.8g [~9.4g] (± ~g)\n", [Median, AvgMedian - Median, SDMedian]),
     io:format("3rd Qu.   ~13.8g\n", [Q3]),
     io:format("Max:      ~13.8g\n", [max(Ds)]),
-    {AvgAverage, SDAverage} = boot_result(fun average/1, BDs),
-    Average = average(Ds),
+    {AvgAverage, SDAverage} = boot_result(fun mean/1, BDs),
+    Average = mean(Ds),
     io:format("Average:  ~13.8g [~9.4g] (± ~g)\n", [Average, AvgAverage - Average, SDAverage]),
     {AvgStdDev, SDStdDev} = boot_result(fun std_dev/1, BDs),
     StdDev = std_dev(Ds),
@@ -245,7 +247,7 @@ draw(K, N, Tuple) ->
 boot_result(Fun, Ds) ->
     Resamples = lists:sort([Fun(D) || D <- Ds]),
     Rs = ds_from_list(resampled, Resamples),
-    {average(Rs), std_dev(Rs)}.
+    {mean(Rs), std_dev(Rs)}.
 
 relative(#dataset { n = DsN } = Ds, #dataset { n = RsN } = Rs, ConfIdx) ->
     I = DsN + RsN - 2,
@@ -255,7 +257,7 @@ relative(#dataset { n = DsN } = Ds, #dataset { n = RsN } = Rs, ConfIdx) ->
     Spool = math:sqrt(Spool1 / I),
 
     S = Spool * math:sqrt(1.0 / DsN + 1.0 / RsN),
-    D = average(Ds) - average(Rs),
+    D = mean(Ds) - mean(Rs),
     E = T * S,
 
     case abs(D) > E of
@@ -265,7 +267,7 @@ relative(#dataset { n = DsN } = Ds, #dataset { n = RsN } = Rs, ConfIdx) ->
         true ->
             io:format("Difference at ~.1f% confidence\n", [element(ConfIdx, student_pct())]),
             io:format("	~g ± ~g\n", [D, E]),
-            io:format("	~g% ± ~g%\n", [D * 100 / average(Rs), E * 100 / average(Rs)]),
+            io:format("	~g% ± ~g%\n", [D * 100 / mean(Rs), E * 100 / mean(Rs)]),
             io:format("	(Student's t, pooled s = ~g)\n", [Spool])
     end.
 
@@ -290,8 +292,8 @@ plot_dim(Ds, Plot) ->
     lists:foldl(fun plot_adj/2, Plot,
         [min(Ds),
          max(Ds),
-         average(Ds) - std_dev(Ds),
-         average(Ds) + std_dev(Ds)]).
+         mean(Ds) - std_dev(Ds),
+         mean(Ds) + std_dev(Ds)]).
 
 plot_height(#dataset { points = Ps }, #plot { dx = DX, x0 = X0 } = Plot) ->
     F = fun(P, {M, I, J}) ->
@@ -321,8 +323,8 @@ plot_histo(#dataset { points = Ps }, Val, #plot { data = Data, dx = DX, x0 = X0 
 plot_bar(#dataset {} = Ds, Pos, #plot { bars = Bars, dx = DX, x0 = X0 } = Plot) ->
     Bar =
       try std_dev(Ds) of _Deviation ->
-            X = trunc(((average(Ds) - std_dev(Ds)) - X0) / DX),
-            M = trunc(((average(Ds) + std_dev(Ds)) - X0) / DX),
+            X = trunc(((mean(Ds) - std_dev(Ds)) - X0) / DX),
+            M = trunc(((mean(Ds) + std_dev(Ds)) - X0) / DX),
             Base = maps:from_list([{I, "_"} || I <- lists:seq(X+1, M-1)]),
             Base#{ M => "|", X => "|" }
       catch
@@ -330,7 +332,7 @@ plot_bar(#dataset {} = Ds, Pos, #plot { bars = Bars, dx = DX, x0 = X0 } = Plot) 
               #{}
     end,
     Median = trunc((median(Ds) - X0) / DX),
-    Average = trunc((average(Ds) - X0) / DX),
+    Average = trunc((mean(Ds) - X0) / DX),
     FinalBar = Bar#{ Median => "M", Average => "A" },
     Plot#plot { bars = Bars# { Pos => FinalBar } }.
 
@@ -434,9 +436,28 @@ s(Name, F, Samples, s) -> s(Name, F, Samples, fun(X) -> X div (1000*1000) end);
 s(Name, F, Samples, G) when is_function(G, 1) ->
     ds_from_list(Name, s_run(F, G, Samples)).
     
-s_run(_F, _G, 0) -> [];
 s_run(F, G, K) ->
-    [G(element(1, timer:tc(F))) | s_run(F,G, K-1)].
+    s_warmup(F),
+    s_bench(F, G, K).
+
+s_warmup(F) ->
+    erlang:send_after(3000, self(), warmup_over),
+    s_warmup_loop(F).
+    
+s_warmup_loop(F) ->
+    receive
+        warmup_over -> ok
+    after 0 ->
+        F(),
+        F(),
+        F(),
+        s_warmup_loop(F)
+    end.
+
+s_bench(_F, _G, 0) -> [];
+s_bench(F, G, K) ->
+    garbage_collect(),
+    [G(element(1, timer:tc(F))) | s_bench(F,G, K-1)].
     
 
 chameleon() ->
