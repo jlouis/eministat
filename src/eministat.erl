@@ -1,5 +1,7 @@
 -module(eministat).
 
+-include("eministat.hrl").
+
 -export([
 	ds_from_list/2,
 	s/3, s/4,
@@ -13,14 +15,6 @@
 	reverse_1/0, reverse_2/0
 ]).
 
-%% Data sets in eministat are these beasts
--record(dataset, {
-	name :: string(),
-	points :: [float()],
-	sy :: float(),
-	syy :: float(),
-	n :: integer()
-}).
 
 %% Record for the plotting infrastructure
 -record(plot, {
