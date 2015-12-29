@@ -65,10 +65,22 @@ quantile(_, _) -> todo.
 
 cumulative(_, _) -> todo.
 
-mean(_) -> todo.
+mean(#dataset { n = N, sy = SY }) -> SY / N.
 
+jackknife(mean, #dataset { n = N, points = Ps }) when N > 1 ->
+    L = N-1,
+    [(X + Y) / L || {X, Y} <- lists:zip(prefix_sum_l(Ps), prefix_sum_r(Ps))];
 jackknife(_, _) -> todo.
-        
+
+prefix_sum_l(Points) -> scanl(fun erlang:'+'/2, 0.0, Points).
+prefix_sum_r(Points) -> scanr(fun erlang:'+'/2, 0.0, Points).
+
+
+%% -- STANDARD LIBRARY ROUTINES -----------------------------------------
+%% Things which should have been in a standard library but isn't, one way or the other.
+
+%% @doc count/2 counts how many times a predicate returns `true'
+%% @end  
 count(F, Ps) -> count(F, Ps, 0).
 
 count(F, [P | Ps], K) ->
@@ -77,3 +89,18 @@ count(F, [P | Ps], K) ->
         false -> count(F, Ps, K)
     end;
 count(_F, [], K) -> K.
+
+%% @doc scanl/3 is like foldl/3 but returns the accumulator for each iteration
+%% @end
+scanl(F, Q, Ls) ->
+    case Ls of
+       [] -> [Q];
+       [X|Xs] -> [Q|scanl(F, F(X, Q), Xs)]
+    end.
+
+%% @doc scanr/3 is like foldr/3 but returns the accumulator for each iteration
+%% @end
+scanr(_F, Q0, []) -> [Q0];
+scanr(F, Q0, [X|Xs]) ->
+    Qs = [Q|_] = scanr(F, Q0, Xs),
+    [F(X, Q) | Qs].
