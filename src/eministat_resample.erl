@@ -35,9 +35,9 @@ estimate([Name | Next], Results) ->
 bootstrap_bca(CLevel, Sample, Estimators, Resamples) when CLevel > 0 andalso CLevel < 1 ->
     [e(CLevel, Sample, Est, Resample) || {Est, Resample} <- lists:zip(Estimators, Resamples)].
 
-estimator(mean, Ds) -> eministat:mean(Ds);
-estimator(variance, Ds) -> eministat:variance(Ds);
-estimator(std_dev, Ds) -> eministat:std_dev(Ds).
+estimator(mean, Ds) -> eministat_ds:mean(Ds);
+estimator(variance, Ds) -> eministat_ds:variance(Ds);
+estimator(std_dev, Ds) -> eministat_ds:std_dev(Ds).
 
 e(CLevel, Sample, Est, #dataset { n = N, points = Ps }) ->
     PT = estimator(Est, Sample),
@@ -49,7 +49,7 @@ e(CLevel, Sample, Est, #dataset { n = N, points = Ps }) ->
     Bias = quantile(standard(), ProbN / N),
     
     #dataset { points = JackPs } = Jack = jackknife(Est, Sample),
-    JackMean = eministat:mean(Jack),
+    JackMean = eministat_ds:mean(Jack),
     F = fun(J, {S, C}) ->
         D = JackMean - J,
         D2 = D * D,
@@ -85,7 +85,7 @@ jackknife_(variance, Ds) -> jackknife_variance(0, Ds);
 jackknife_(std_dev, Ds) -> [math:sqrt(X) || X <- jackknife_variance(1, Ds)].
 
 jackknife_variance(C, #dataset { n = N, points = Ps } = Ds) when N > 1 ->
-    M = eministat:mean(Ds),
+    M = eministat_ds:mean(Ds),
     GOA = fun(X) ->
         V = X - M,
         V*V

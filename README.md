@@ -14,11 +14,11 @@ Suppose you have measured the blade thickness in (μs) of a Ligustrum, one in th
 	{module,eministat}
 	2> rr(eministat).
 	[dataset,plot]
-	3> Sun = eministat:ligustrum_sun().
+	3> Sun = eministat_ts:ligustrum_sun().
 	#dataset{name = "sun",
 	         points = [100,150,200,210,210,300,300],
 	         sy = 1470.0,syy = 3.407e5,n = 7}
-	4> Shade = eministat:ligustrum_shade().
+	4> Shade = eministat_ts:ligustrum_shade().
 	#dataset{name = "shade",
 	         points = [120,125,130,160,170,200,200],
 	         sy = 1105.0,syy = 181425.0,n = 7}
@@ -70,7 +70,7 @@ This will sample 50 runs of our `tail_reverse/1` function. Likewise, we can grab
 
 And finally, we can ask `eministat` if there is any difference between the data sets:
 
-	7> eministat:x(95.0, L1, L2). 
+	7> eministat:x(95.0, Rev1, Rev2). 
 	x lists:reverse/1
 	+ tail_reverse/1
 	+--------------------------------------------------------------------------+
@@ -130,7 +130,7 @@ The function `s/3` can be used to sample
 
 	DataSet = eministat:s(Name, Function, N)
 
-will run `Function` `N` times and collect the run-time in microseconds for each sample. It will then stuff the resulting data points into a dataset with `Name`.
+will run `Function` `N` times and collect the run-time in microseconds for each sample. It will then stuff the resulting data points into a dataset with `Name`. The s/3 function will first warm up by running the test for 3 seconds before actually starting to measure. This avoids numerous problems with CPU frequency scaling. It also garbage collects before each measurement.
 
 Finally, to analyze two data sets or more, use the `x/3` function
 
