@@ -39,32 +39,35 @@ symbol() ->
     {$x, $+, $*, $%, $#, $@, $O}.
 
 vitals_bootstrapped(#dataset { n = N } = Ds, Flag, CI) ->
-    BDs = bootstrap(?ROUNDS, Ds),
+    Boostrapped = eministat_resample:resample([mean, std_dev], ?ROUNDS, Ds),
+    
+    [{mean, #{ pt := Mean, lo := EMeanL, hi := EMeanH, mean := EMean } },
+     {std_dev, #{ pt := StdDev, lo := EStdDevL, hi := EStdDevH, mean := EStdDev } }] =
+        eministat_resample:bootstrap_bca(CI / 100, Ds, Boostrapped),
+
+    Median = eministat_ds:median(Ds),
     Q1 = eministat_ds:percentile(0.25, Ds),
     Q3 = eministat_ds:percentile(0.75, Ds),
     io:format("Dataset: ~c N=~B CI=~g\n", [element(Flag, symbol()), N, CI]),
 
-    io:format("Statistic     Value     [     Bias] (SE)\n"),
-    io:format("Min:      ~13.8g\n", [eministat_ds:min(Ds)]),
-    io:format("1st Qu.   ~13.8g\n", [Q1]),
-    {AvgMedian, SDMedian} = boot_result(fun eministat_ds:median/1, BDs),
-    Median = eministat_ds:median(Ds),
-    io:format("Median:   ~13.8g [~9.4g] (± ~g)\n", [Median, AvgMedian - Median, SDMedian]),
-    io:format("3rd Qu.   ~13.8g\n", [Q3]),
-    io:format("Max:      ~13.8g\n", [eministat_ds:max(Ds)]),
-    {AvgAverage, SDAverage} = boot_result(fun eministat_ds:mean/1, BDs),
-    Average = eministat_ds:mean(Ds),
-    io:format("Average:  ~13.8g [~9.4g] (± ~g)\n", [Average, AvgAverage - Average, SDAverage]),
-    {AvgStdDev, SDStdDev} = boot_result(fun eministat_ds:std_dev/1, BDs),
-    StdDev = eministat_ds:std_dev(Ds),
-    io:format("Std. Dev: ~13.8g [~9.4g] (± ~g)\n", [StdDev, AvgStdDev - StdDev, SDStdDev]),
+    io:format("Statistic     Value     [     Bias] (Bootstrapped LB‥UB)\n"),
+    io:format("Min:      ~13g\n", [eministat_ds:min(Ds)]),
+    io:format("1st Qu.   ~13g\n", [Q1]),
+    io:format("Median:   ~13g\n", [Median]),
+    io:format("3rd Qu.   ~13g\n", [Q3]),
+    io:format("Max:      ~13g\n", [eministat_ds:max(Ds)]),
+    io:format("Average:  ~13g [~9g] (~13g ‥ ~13g)\n",
+        [Mean, EMean - Mean, EMeanL, EMeanH]),
+    io:format("Std. Dev: ~13g [~9g] (~13g ‥ ~13g)\n", [StdDev, EStdDev - StdDev, EStdDevL, EStdDevH]),
     
     IQR = Q3 - Q1,
     OutliersB = length([x || P <- Ds#dataset.points, P < (Q1 - 1.5 * IQR)]),
     OutliersT = length([x || P <- Ds#dataset.points, P > (Q3 + 1.5 * IQR)]),
-    io:format("Outliers: ~B + ~B = ~B (μ=~g, σ=~g)\n", [OutliersB, OutliersT, OutliersT + OutliersB, AvgAverage, AvgStdDev]),
-    {OutVar, Severity} = eministat_analysis:outlier_variance(AvgAverage, AvgStdDev, N),
-    io:format("\tOutlier variance: ~g (~s)\n", [OutVar, format_outlier_variance(Severity)]),
+    io:format("~n"),
+
+    io:format("Outliers: ~B/~B = ~B (μ=~g, σ=~g)\n", [OutliersB, OutliersT, OutliersT + OutliersB, EMean, EStdDev]),
+    {OutVar, Severity} = eministat_analysis:outlier_variance(Mean, StdDev, N),
+    io:format("\tOutlier variance: ~13g (~s)\n", [OutVar, format_outlier_variance(Severity)]),
     io:format("\n"),
     ok.
 
@@ -72,24 +75,6 @@ format_outlier_variance(unaffected) -> "not affected by outliers";
 format_outlier_variance(slight) -> "slight";
 format_outlier_variance(moderate) -> "moderate";
 format_outlier_variance(severe) -> "severe, the data set is probably unusable".
-
-bootstrap(Rounds, #dataset { n = N, points = Ps }) ->
-    boot(Rounds, N, list_to_tuple(Ps), []).
-    
-boot(0, _, _, Acc) -> Acc;
-boot(K, N, Ps, Acc) ->
-    Points = draw(N, N, Ps),
-    boot(K-1, N, Ps, [eministat_ds:from_list(K, Points) | Acc]).
-
-draw(0, _, _) -> [];
-draw(K, N, Tuple) ->
-    [element(rand:uniform(N), Tuple) | draw(K-1, N, Tuple)].
-
-boot_result(Fun, Ds) ->
-    Resamples = lists:sort([Fun(D) || D <- Ds]),
-    Rs = eministat_ds:from_list(resampled, Resamples),
-    {eministat_ds:mean(Rs), eministat_ds:std_dev(Rs)}.
-
 
 plot_init(Width, Num) ->
     #plot { width = Width, height = 0, num_datasets = Num, min = 999.0e99, max = -999.0e99 }.

@@ -4,12 +4,12 @@
 
 -include("eministat.hrl").
 
--export([bootstrap/3, bootstrap_bca/4]).
+-export([resample/3, bootstrap_bca/3]).
 -compile(export_all).
 
 %% @doc resample/3 is the main resampler of eministat
 %% @end
-bootstrap(Estimators, Resamples, #dataset { n = N, points = Ps }) ->
+resample(Estimators, Resamples, #dataset { n = N, points = Ps }) ->
     ResultSets = boot(Resamples, N, list_to_tuple(Ps)),
     estimate(Estimators, ResultSets).
     
@@ -32,16 +32,18 @@ estimate([Name | Next], Results) ->
     [{Name, Rs} | estimate(Next, Results)].
 
 %% Bias-correct accelerated bootstrap, taken from Bryan O'Sullivan's Criterion
-bootstrap_bca(CLevel, Sample, Estimators, Resamples) when CLevel > 0 andalso CLevel < 1 ->
-    [e(CLevel, Sample, Est, Resample) || {Est, Resample} <- lists:zip(Estimators, Resamples)].
+bootstrap_bca(CLevel, Sample, Bootstraps) when CLevel > 0 andalso CLevel < 1 ->
+    [{Est, e(CLevel, Sample, Est, Resample)} || {Est, Resample} <- Bootstraps].
 
 estimator(mean, Ds) -> eministat_ds:mean(Ds);
 estimator(variance, Ds) -> eministat_ds:variance(Ds);
 estimator(std_dev, Ds) -> eministat_ds:std_dev(Ds).
 
-e(CLevel, Sample, Est, #dataset { n = N, points = Ps }) ->
+e(CLevel, Sample, Est, #dataset { n = N, points = Ps } = Rs) ->
     PT = estimator(Est, Sample),
-    
+    Mean = eministat_ds:mean(Rs),
+    StdDev = eministat_ds:std_dev(Rs),
+
     Z1 = quantile(standard(), (1 - CLevel) / 2),
     CumN = fun(X) -> round(N * cumulative(standard(), X)) end,
 
@@ -56,23 +58,25 @@ e(CLevel, Sample, Est, #dataset { n = N, points = Ps }) ->
         {S + D2, C + D2 * D}
     end,
     {SumSquares, SumCubes} = lists:foldl(F, {0.0,0.0}, JackPs),
-    io:format("JackMean: ~p, Jack: ~p~n", [JackMean, Jack]),
+%%    io:format("JackMean: ~p, Jack: ~p~n", [JackMean, Jack]),
     Accel = SumCubes / (6 * (math:pow(SumSquares, 1.5))),
 
     B1 = Bias + Z1,
-    A1 = Bias + B1 / (1 - Accel * B1),
+    A1 = Bias + B1 / (1.0 - Accel * B1),
     Lo = max(0, CumN(A1)),
     
     B2 = Bias - Z1,
-    A2 = Bias + B2 / (1 - Accel * B2),
+    A2 = Bias + B2 / (1.0 - Accel * B2),
     Hi = min(N - 1, CumN(A2)),
     
-    #{ pt => PT, lo => lists:nth(Lo+1, Ps), hi => lists:nth(Hi+1), cl => CLevel }.
 
-quantile(#{ mean := M }, 0.5) -> M;
-quantile(#{ mean := M, cdf_denom := CDF }, P) when P > 0 andalso P < 1 ->
-    X = inv_erfc(2 * (1 - P)),
-    X * CDF + M.
+%%    io:format("Points found: ~p~n", [#{ pt => PT, lo => Lo, hi => Hi, n => N, z1 => Z1, prob_n => ProbN, bias => Bias,
+%%        accel => Accel, b1 => B1, a1 => A1, b2 => B2, a2 => A2 }]),
+    true = Lo =< Hi,
+    true = CLevel > 0 andalso CLevel < 1,
+
+    #{ pt => PT, mean => Mean, std_dev => StdDev, lo => lists:nth(Lo+1, Ps), hi => lists:nth(Hi+1, Ps), cl => CLevel }.
+
 
 jackknife(Ty, #dataset{ name = N } = Ds) ->
     eministat_ds:from_list({jack, N}, jackknife_(Ty, Ds)).
@@ -111,7 +115,12 @@ standard() ->
     #{ mean => 0.0, std_dev => 1.0, pdf_denom => math:log(sqrt2pi()), cdf_denom => sqrt2() }.
 
 cumulative(#{ mean := M, cdf_denom := CDF}, X) ->
-    math:erfc(((M - X) / CDF) / 2).
+    math:erfc((M - X) / CDF) / 2.
+
+quantile(#{ mean := M }, 0.5) -> M;
+quantile(#{ mean := M, cdf_denom := CDF }, P) when P > 0 andalso P < 1 ->
+    X = inv_erfc(2 * (1 - P)),
+    X * CDF + M.
 
 %% -- STANDARD LIBRARY ROUTINES -----------------------------------------
 %% Things which should have been in a standard library but isn't, one way or the other.
@@ -165,6 +174,6 @@ inv_erfc(P) when P > 0 andalso P < 2 ->
 
 inv_erfc_loop(_PP, J, X) when J >= 2 -> X;
 inv_erfc_loop(PP, J, X) ->
-    Err = math:erfc(X - PP),
+    Err = math:erfc(X) - PP,
     XP = X + Err / (1.12837916709551257 * math:exp(-X * X) - X * Err), %% // Halley
     inv_erfc_loop(PP, J+1, XP).
