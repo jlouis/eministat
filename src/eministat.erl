@@ -3,7 +3,6 @@
 -include("eministat.hrl").
 
 -export([
-	ds_from_list/2,
 	s/3, s/4,
 	x/3
 ]).
@@ -36,23 +35,6 @@
 -define(ROUNDS, 10000). %% Bootstrap resampling count
 -define(NSTUDENT, 100). %% Number of elements in the students distribution lookup table
 -define(MAX_DS, 8).
-
-%% Constructing a dataset from a list
-ds_from_list(Name, Ps) ->
-    F = fun(P, {X, XX, K}) -> {X + P, XX + (P * P), K+1} end,
-    {SY, SYY, N} = lists:foldl(F, {0.0, 0.0, 0}, Ps),
-    case N < 3 of
-        true ->
-            error(dataset_too_small);
-        false ->
-            #dataset {
-                name = Name,
-                points = lists:sort(Ps),
-                sy = SY,
-                syy = SYY,
-                n = N
-            }
-    end.
 
 %% Constant tables, represented as tuples for O(1) lookup speeds
 student_pct() -> {80.0, 90.0, 95.0, 98.0, 99.0, 99.5}.
@@ -238,7 +220,7 @@ bootstrap(Rounds, #dataset { n = N, points = Ps }) ->
 boot(0, _, _, Acc) -> Acc;
 boot(K, N, Ps, Acc) ->
     Points = draw(N, N, Ps),
-    boot(K-1, N, Ps, [ds_from_list(K, Points) | Acc]).
+    boot(K-1, N, Ps, [eministat_ds:from_list(K, Points) | Acc]).
 
 draw(0, _, _) -> [];
 draw(K, N, Tuple) ->
@@ -246,7 +228,7 @@ draw(K, N, Tuple) ->
 
 boot_result(Fun, Ds) ->
     Resamples = lists:sort([Fun(D) || D <- Ds]),
-    Rs = ds_from_list(resampled, Resamples),
+    Rs = eministat_ds:from_list(resampled, Resamples),
     {mean(Rs), std_dev(Rs)}.
 
 relative(#dataset { n = DsN } = Ds, #dataset { n = RsN } = Rs, ConfIdx) ->
@@ -434,7 +416,7 @@ s(Name, F, Samples, us) -> s(Name, F, Samples, fun(X) -> X end);
 s(Name, F, Samples, ms) -> s(Name, F, Samples, fun(X) -> X div 1000 end);
 s(Name, F, Samples, s) -> s(Name, F, Samples, fun(X) -> X div (1000*1000) end);
 s(Name, F, Samples, G) when is_function(G, 1) ->
-    ds_from_list(Name, s_run(F, G, Samples)).
+    eministat_ds:from_list(Name, s_run(F, G, Samples)).
     
 s_run(F, G, K) ->
     s_warmup(F),
@@ -461,16 +443,16 @@ s_bench(F, G, K) ->
     
 
 chameleon() ->
-    ds_from_list("chameleon", [150, 400, 720, 500, 930]).
+    eministat_ds:from_list("chameleon", [150, 400, 720, 500, 930]).
 
 iguana() ->
-    ds_from_list("iguana", [50, 200, 150, 400, 750, 400, 150]).
+    eministat_ds:from_list("iguana", [50, 200, 150, 400, 750, 400, 150]).
 
 ligustrum_sun() ->
-    ds_from_list("sun", [150, 100, 210, 300, 200, 210, 300]).
+    eministat_ds:from_list("sun", [150, 100, 210, 300, 200, 210, 300]).
 
 ligustrum_shade() ->
-    ds_from_list("shade", [120, 125, 160, 130, 200, 170, 200]).
+    eministat_ds:from_list("shade", [120, 125, 160, 130, 200, 170, 200]).
 
 reverse_1() ->
     L = lists:seq(1, 1000000),

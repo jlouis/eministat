@@ -19,7 +19,7 @@ boot(Resamples, N, Points) ->
 boot(0, _, _, Acc) -> Acc;
 boot(K, N, Ps, Acc) ->
     Points = draw(N, N, Ps),
-    boot(K-1, N, Ps, [eministat:ds_from_list(K, Points) | Acc]).
+    boot(K-1, N, Ps, [eministat_ds:from_list(K, Points) | Acc]).
     
 draw(0, _, _) -> [];
 draw(K, N, Tuple) ->
@@ -28,7 +28,7 @@ draw(K, N, Tuple) ->
 estimate([], _Results) -> [];
 estimate([Name | Next], Results) ->
     Resamples = lists:sort([estimator(Name, D) || D <- Results]),
-    Rs = eministat:ds_from_list(Name, Resamples),
+    Rs = eministat_ds:from_list(Name, Resamples),
     [{Name, Rs} | estimate(Next, Results)].
 
 %% Bias-correct accelerated bootstrap, taken from Bryan O'Sullivan's Criterion
@@ -75,7 +75,7 @@ quantile(#{ mean := M, cdf_denom := CDF }, P) when P > 0 andalso P < 1 ->
     X * CDF + M.
 
 jackknife(Ty, #dataset{ name = N } = Ds) ->
-    eministat:ds_from_list({jack, N}, jackknife_(Ty, Ds)).
+    eministat_ds:from_list({jack, N}, jackknife_(Ty, Ds)).
 
 jackknife_(mean, #dataset { n = N, points = Ps }) when N > 1 ->
     L = N-1,

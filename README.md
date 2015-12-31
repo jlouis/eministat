@@ -122,7 +122,7 @@ To use `eministat`, your data must be normally distributed. You will have to mak
 
 The `eministat` application supports 3 major functions:
 
-	DataSet = eministat:ds_from_list(Name, DataPoints),
+	DataSet = eministat_ds:from_list(Name, DataPoints),
 
 will construct a new data set from a list of already measured data points.
 
