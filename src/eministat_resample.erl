@@ -67,7 +67,7 @@ e(CLevel, Sample, Est, #dataset { n = N, points = Ps }) ->
     A2 = Bias + B2 / (1 - Accel * B2),
     Hi = min(N - 1, CumN(A2)),
     
-    #{ pt => PT, lo => Lo, hi => Hi, cl => CLevel }.
+    #{ pt => PT, lo => lists:nth(Lo+1, Ps), hi => lists:nth(Hi+1), cl => CLevel }.
 
 quantile(#{ mean := M }, 0.5) -> M;
 quantile(#{ mean := M, cdf_denom := CDF }, P) when P > 0 andalso P < 1 ->
