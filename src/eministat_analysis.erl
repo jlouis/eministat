@@ -8,6 +8,10 @@
 %% -- OUTLIER VARIANCE ------
 %%
 %% @doc outlier_variance/3 computes the severity of the outlier variance
+%%
+%% http://www.ellipticgroup.com/misc/article_supplement.pdf
+%%
+%% @end
 outlier_variance(_, Sigma, _) when Sigma < 0.000000000000001 -> {0.0, unaffected};
 outlier_variance(Mu, Sigma, A) ->
     MinBy = fun(F, Q, R) -> min(F(Q), F(R)) end,

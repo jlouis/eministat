@@ -50,15 +50,15 @@ vitals_bootstrapped(#dataset { n = N } = Ds, Flag, CI) ->
     Q3 = eministat_ds:percentile(0.75, Ds),
     io:format("Dataset: ~c N=~B CI=~g\n", [element(Flag, symbol()), N, CI]),
 
-    io:format("Statistic     Value     [     Bias] (Bootstrapped LB‥UB)\n"),
+    io:format("Statistic     Value     [         Bias] (Bootstrapped LB‥UB)\n"),
     io:format("Min:      ~13g\n", [eministat_ds:min(Ds)]),
     io:format("1st Qu.   ~13g\n", [Q1]),
     io:format("Median:   ~13g\n", [Median]),
     io:format("3rd Qu.   ~13g\n", [Q3]),
     io:format("Max:      ~13g\n", [eministat_ds:max(Ds)]),
-    io:format("Average:  ~13g [~9g] (~13g ‥ ~13g)\n",
+    io:format("Average:  ~13g [~13g] (~13g ‥ ~13g)\n",
         [Mean, EMean - Mean, EMeanL, EMeanH]),
-    io:format("Std. Dev: ~13g [~9g] (~13g ‥ ~13g)\n", [StdDev, EStdDev - StdDev, EStdDevL, EStdDevH]),
+    io:format("Std. Dev: ~13g [~13g] (~13g ‥ ~13g)\n", [StdDev, EStdDev - StdDev, EStdDevL, EStdDevH]),
     
     IQR = Q3 - Q1,
     OutliersB = length([x || P <- Ds#dataset.points, P < (Q1 - 1.5 * IQR)]),
