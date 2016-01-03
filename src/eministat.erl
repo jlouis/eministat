@@ -23,7 +23,6 @@
 
 -define(EPSILON, 0.0000001). %% Epsilon value for floating point comparisons
 -define(ROUNDS, 10000). %% Bootstrap resampling count
--define(MAX_DS, 8).
 
 valid_ci(80.0) -> 1;
 valid_ci(90.0) -> 2;
@@ -33,48 +32,25 @@ valid_ci(99.0) -> 5;
 valid_ci(99.5) -> 6;
 valid_ci(_) -> error(badarg).
 
-symbol(K) when K >= 0 andalso K < ?MAX_DS -> [element(K, symbol())].
+vitals_bootstrapped(#dataset { n = N } = Ds, CI) ->
+    Bootstrapped = eministat_resample:resample([mean, std_dev], ?ROUNDS, Ds),
+    vitals_outliers(Ds, #{
+        n => N,
+        ci => CI,
+        min => eministat_ds:min(Ds),
+        max => eministat_ds:max(Ds),
+        percentiles =>
+            maps:from_list([{P, eministat_ds:percentile(P / 100, Ds)} || P <- [25, 50, 75, 90, 95, 99, 99.5, 99.9] ]),
+        bootstrapped =>
+            maps:from_list(eministat_resample:bootstrap_bca(CI / 100, Ds, Bootstrapped))
+    }).
 
-symbol() ->
-    {$x, $+, $*, $%, $#, $@, $O}.
-
-vitals_bootstrapped(#dataset { n = N } = Ds, Flag, CI) ->
-    Boostrapped = eministat_resample:resample([mean, std_dev], ?ROUNDS, Ds),
-    
-    [{mean, #{ pt := Mean, lo := EMeanL, hi := EMeanH, mean := EMean } },
-     {std_dev, #{ pt := StdDev, lo := EStdDevL, hi := EStdDevH, mean := EStdDev } }] =
-        eministat_resample:bootstrap_bca(CI / 100, Ds, Boostrapped),
-
-    Median = eministat_ds:median(Ds),
-    Q1 = eministat_ds:percentile(0.25, Ds),
-    Q3 = eministat_ds:percentile(0.75, Ds),
-    io:format("Dataset: ~c N=~B CI=~g\n", [element(Flag, symbol()), N, CI]),
-
-    io:format("Statistic     Value     [         Bias] (Bootstrapped LB‥UB)\n"),
-    io:format("Min:      ~13g\n", [eministat_ds:min(Ds)]),
-    io:format("1st Qu.   ~13g\n", [Q1]),
-    io:format("Median:   ~13g\n", [Median]),
-    io:format("3rd Qu.   ~13g\n", [Q3]),
-    io:format("Max:      ~13g\n", [eministat_ds:max(Ds)]),
-    io:format("Average:  ~13g [~13g] (~13g ‥ ~13g)\n",
-        [Mean, EMean - Mean, EMeanL, EMeanH]),
-    io:format("Std. Dev: ~13g [~13g] (~13g ‥ ~13g)\n", [StdDev, EStdDev - StdDev, EStdDevL, EStdDevH]),
-    
+vitals_outliers(#dataset { points = Ps }, #{ percentiles := #{ 25 := Q1, 75 := Q3 } } = Data) ->
     IQR = Q3 - Q1,
-    OutliersB = length([x || P <- Ds#dataset.points, P < (Q1 - 1.5 * IQR)]),
-    OutliersT = length([x || P <- Ds#dataset.points, P > (Q3 + 1.5 * IQR)]),
-    io:format("~n"),
+    Data#{ outliers =>
+        {eministat_resample:count(fun(P) -> P < (Q1 - 1.5*IQR) end, Ps),
+         eministat_resample:count(fun(P) -> P > (Q3 + 1.5*IQR) end, Ps)}}.
 
-    io:format("Outliers: ~B/~B = ~B (μ=~g, σ=~g)\n", [OutliersB, OutliersT, OutliersT + OutliersB, EMean, EStdDev]),
-    {OutVar, Severity} = eministat_analysis:outlier_variance(Mean, StdDev, N),
-    io:format("\tOutlier variance: ~13g (~s)\n", [OutVar, format_outlier_variance(Severity)]),
-    io:format("\n"),
-    ok.
-
-format_outlier_variance(unaffected) -> "not affected by outliers";
-format_outlier_variance(slight) -> "slight";
-format_outlier_variance(moderate) -> "moderate";
-format_outlier_variance(severe) -> "severe, the data set is probably unusable".
 
 plot_init(Width, Num) ->
     #plot { width = Width, height = 0, num_datasets = Num, min = 999.0e99, max = -999.0e99 }.
@@ -172,7 +148,7 @@ plot_dump_histo(#plot { width = W, height = H, data = Data }) ->
     PC = fun(I, J) ->
         case maps:get({I, J}, Data, undefined) of
             undefined -> " ";
-            K -> symbol(K)
+            K -> eministat_report:symbol(K)
         end
     end,
     DumpLine = fun(I) -> [PC(I, J) || J <- lists:seq(0, W-1)] end,
@@ -209,7 +185,7 @@ h(DSs) -> h(DSs, 1).
 
 h([], _) -> ok;
 h([#dataset { name = Name } | Next], Symb) ->
-    io:format("~s ~s\n", [symbol(Symb), Name]),
+    io:format("~s ~s\n", [eministat_report:symbol(Symb), Name]),
     h(Next, Symb+1).
 
 p(TermWidth, DSs) ->
@@ -220,13 +196,15 @@ p(TermWidth, DSs) ->
     plot_dump(Plotted).
 
 r(CI, Ds, DSs) ->
-    vitals_bootstrapped(Ds, 1, CI),
+    V1 = vitals_bootstrapped(Ds, CI),
+    eministat_report:vitals(V1, 1),
     io:format("------\n\n"),
 
     r(CI, Ds, DSs, 1).
 
 r(CI, Ds, [Rs | Next], I) ->
-    vitals_bootstrapped(Rs, I+1, CI),
+    Vs = vitals_bootstrapped(Rs, CI),
+    eministat_report:vitals(Vs, I+1),
     eministat_analysis:relative(Rs, Ds, valid_ci(CI)),
     
     io:format("------\n\n"),
