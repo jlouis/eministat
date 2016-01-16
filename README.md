@@ -231,5 +231,3 @@ We report a series of numbers: the difference in the means ± the interval for t
 
 In general, you have to pass this test for your measurements to have any meaning when comparing two benchmarks. Otherwise, the overlap in runtime is such that there is little reason to believe one way of solving the problem is faster than the other.
 
-
-
