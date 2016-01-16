@@ -1,6 +1,6 @@
 -module(eministat_report).
 
--export([symbol/1, vitals/2]).
+-export([symbol/1, vitals/2, relative/1]).
 
 -define(MAX_DS, 8).
 
@@ -41,3 +41,16 @@ format_outlier_variance(slight) -> "slight";
 format_outlier_variance(moderate) -> "moderate";
 format_outlier_variance(severe) -> "severe, the data set is probably unusable".
 
+relative({no_difference, CI}) ->
+    io:format("No difference proven at ~.1f% confidence\n", [CI]);
+relative({difference, #{ confidence_level := CI,
+                         difference := {D, E},
+                         difference_pct := {DPct, EPct},
+                         pooled_s := Spool }}) ->
+    io:format("Difference at ~.1f% confidence\n", [CI]),
+    io:format("	~g ± ~g\n", [D, E]),
+    io:format("	~g% ± ~g%\n", [DPct, EPct]),
+    io:format("	(Student's t, pooled s = ~g)\n", [Spool]).
+
+
+    

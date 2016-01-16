@@ -47,6 +47,7 @@ outlier_variance(Mu, Sigma, A) ->
 
 %% -- RELATIVE #dataset{} COMPARISONS -----
 
+
 relative(#dataset { n = DsN } = Ds, #dataset { n = RsN } = Rs, ConfIdx) ->
     I = DsN + RsN - 2,
     T = element(ConfIdx, student_lookup(I)),
@@ -60,13 +61,16 @@ relative(#dataset { n = DsN } = Ds, #dataset { n = RsN } = Rs, ConfIdx) ->
 
     case abs(D) > E of
         false ->
-            io:format("No difference proven at ~.1f% confidence\n",
-                [element(ConfIdx, student_pct())]);
+            {no_difference, element(ConfIdx, student_pct())};
         true ->
-            io:format("Difference at ~.1f% confidence\n", [element(ConfIdx, student_pct())]),
-            io:format("	~g ± ~g\n", [D, E]),
-            io:format("	~g% ± ~g%\n", [D * 100 / eministat_ds:mean(Rs), E * 100 / eministat_ds:mean(Rs)]),
-            io:format("	(Student's t, pooled s = ~g)\n", [Spool])
+            {difference,
+             #{ confidence_level => element(ConfIdx, student_pct()),
+                difference => {D, E},
+                difference_pct => {
+                  D * 100 / eministat_ds:mean(Rs),
+                  E * 100 / eministat_ds:mean(Rs)},
+                pooled_s => Spool
+              }}
     end.
 
 %% -- STUDENT's T TABLES -----
