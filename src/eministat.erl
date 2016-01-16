@@ -8,6 +8,9 @@
          a/3
 ]).
 
+-type confidence_interval() :: float().
+-type dataset() :: #dataset{}.
+
 -define(ROUNDS, 10000). %% Bootstrap resampling count
 
 valid_ci(80.0) -> 1;
@@ -57,6 +60,7 @@ h([#dataset { name = Name } | Next], Symb) ->
     io:format("~s ~s\n", [eministat_report:symbol(Symb), Name]),
     h(Next, Symb+1).
 
+-spec a(confidence_interval(), dataset(), [dataset()]) -> term().
 a(CI, Ds, DSs) ->
     V1 = vitals_bootstrapped(Ds, CI),
     io:format("------\n\n"),
