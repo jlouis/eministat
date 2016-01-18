@@ -8,7 +8,9 @@ input() -> oneof([integer(), real()]).
            
 dataset() ->
     ?LET(Inputs, [input(), input(), input() | list(input())],
-         eministat_ds:from_list(dummy_ds, Inputs)).
+         eministat_ds:from_list(
+           dummy_ds,
+           Inputs)).
 
 crashes(F) ->
     try

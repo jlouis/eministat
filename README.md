@@ -8,7 +8,7 @@ This program owes everything to Poul-Henning Kamp and his `ministat` application
 
 # Examples
 
-Suppose you have measured the blade thickness in (μs) of a Ligustrum, one in the sun and one in the shade. You wonder if there is any measurable difference between these two data sets. This is the question `eministat` can answer:
+Suppose you have measured the leaf thickness in (μs) of a Ligustrum, one in the sun and one in the shade. You wonder if there is any measurable difference between these two data sets. This is the question `eministat` can answer:
 
 	7> eministat:x(95.0, Sun, Shade).
 	x sun
@@ -135,7 +135,13 @@ Both datasets have 1 outlier, which are values far from the mean. An analysis al
 
 # Usage
 
-To use `eministat`, your data must be normally distributed. You will have to make a reasonable guess that they are, before you can use the mathematics. Once you know that to be the case, you can use `eministat` to analyze your data sets.
+To use `eministat`, your data must be normally distributed, and both
+datasets must have the same variance. If they are not, then the
+student's t method doesn't really work as expected, and one must use
+more powerful tools, such as R, to analyze the data set. You will have
+to make a reasonable guess that they are, before you can use the
+mathematics. Once you know that to be the case, you can use
+`eministat` to analyze your data sets.
 
 The `eministat` application supports 3 major functions:
 
@@ -163,8 +169,8 @@ The `eministat` output contains 4 sections:
 	HISTOGRAM
 	For each dataset:
 		VITALS
-		OUTLIER ANALYSIS
-	STUDENT'S T
+	    OUTLIER ANALYSIS
+	    STUDENT'S T
 	
 ## HISTOGRAM
 
