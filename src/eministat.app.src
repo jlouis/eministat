@@ -1,0 +1,15 @@
+{application, 'eministat',
+ [{description, "Basic statistics for comparing datasets from benchmarks"},
+  {vsn, "0.10.1"},
+  {registered, []},
+  {applications,
+   [kernel,
+    stdlib
+   ]},
+  {env,[]},
+  {modules, []},
+
+  {maintainers, ["Jesper Louis Andersen"]},
+  {licenses, []},
+  {links, []}
+ ]}.
