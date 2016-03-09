@@ -63,8 +63,6 @@ h([#dataset { name = Name } | Next], Symb) ->
 -spec a(confidence_interval(), dataset(), [dataset()]) -> term().
 a(CI, Ds, DSs) ->
     V1 = vitals_bootstrapped(Ds, CI),
-    io:format("------\n\n"),
-
     #{ dataset => Ds,
        vitals => V1,
        relative => a(CI, Ds, DSs, 1)
