@@ -59,8 +59,8 @@ adj(A, #plot { min = PMin, max = PMax, width = PWidth } = Plot) ->
     }.
 
 dim(Ds, Plot) ->
-    Mean = eministat:mean(Ds),
-    Dev = eministat:std_dev(Ds),
+    Mean = eministat_ds:mean(Ds),
+    Dev = eministat_ds:std_dev(Ds),
     lists:foldl(fun adj/2, Plot,
         [eministat_ds:min(Ds),
          eministat_ds:max(Ds),
@@ -95,10 +95,15 @@ histo(#dataset { points = Ps }, Val, #plot { data = Data, dx = DX, x0 = X0 } = P
 bar(#dataset {} = Ds, Pos, #plot { bars = Bars, dx = DX, x0 = X0 } = Plot) ->
     Bar =
       try eministat_ds:std_dev(Ds) of Dev ->
-            X = trunc(((eministat_ds:mean(Ds) - Dev) - X0) / DX),
-            M = trunc(((eministat_ds:mean(Ds) + Dev) - X0) / DX),
-            Base = maps:from_list([{I, "_"} || I <- lists:seq(X+1, M-1)]),
-            Base#{ M => "|", X => "|" }
+              X = trunc(((eministat_ds:mean(Ds) - Dev) - X0) / DX),
+              M = trunc(((eministat_ds:mean(Ds) + Dev) - X0) / DX),
+              Base = case {X+1, M-1} of
+                         {Z, Z} -> #{ Z => "_" };
+                         {Lo, Hi} when Lo < Hi ->
+                             maps:from_list([{I, "_"} || I <- lists:seq(Lo, Hi)]);
+                         {_, _} -> #{}
+                     end,
+              Base#{ M => "|", X => "|" }
       catch
           error:badarith ->
               #{}
