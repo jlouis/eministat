@@ -6,3 +6,5 @@ ebin/*.beam
 _build
 logs/*
 ebin/*
+/hexer.config
+/src/.eqc-info

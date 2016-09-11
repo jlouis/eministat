@@ -1,7 +1,7 @@
 -module(eministat_plot).
 -include("eministat.hrl").
 
--export([p/2]).
+-export([p/1, p/2]).
 
 %% Record for the plotting infrastructure
 -record(plot, {
@@ -17,30 +17,34 @@
 	x0 :: float()
 }).
 
+-define(DEFAULT_TERM_WIDTH, 74).
 -define(EPSILON, 0.0000001). %% Epsilon value for floating point comparisons
 
 %% -- API -----------------------------------------------------------------------------
 
+p(DSs) -> p(?DEFAULT_TERM_WIDTH, DSs).
+
 p(TermWidth, DSs) ->
     N = length(DSs),
-    Init = plot_init(TermWidth, N),
-    Dimensioned = lists:foldl(fun plot_dim/2, Init, DSs),
-    {_, Plotted} = lists:foldl(fun(Ds, {Symb, Plot}) -> {Symb+1, plot_set(Ds, Symb, Plot)} end, {1, Dimensioned}, DSs),
-    plot_dump(Plotted).
+    Init = mk(TermWidth, N),
+    Dimensioned = lists:foldl(fun dim/2, Init, DSs),
+    {_, Plotted} = lists:foldl(fun(Ds, {Symb, Plot}) -> {Symb+1, set(Ds, Symb, Plot)} end, {1, Dimensioned}, DSs),
+    dump(Plotted).
 
 %% -- INTERNALS ---------------------------------------------------------------------------
 
-plot_set(_Ds, _Val, #plot { span = S } = Plot) when S < ?EPSILON -> Plot;
-plot_set(Ds, Val, Plot0) ->
-    Plot1 = plot_height(Ds, Plot0),
-    Plot2 = plot_histo(Ds, Val, Plot1),
-    Plot3 = plot_bar(Ds, Val, Plot2),
+set(_Ds, _Val, #plot { span = S } = Plot) when S < ?EPSILON -> Plot;
+set(Ds, Val, Plot0) ->
+    Plot1 = height(Ds, Plot0),
+    Plot2 = histo(Ds, Val, Plot1),
+    Plot3 = bar(Ds, Val, Plot2),
     Plot3.
 
-plot_init(Width, Num) ->
+%% init/2 sets up a new plot structure
+mk(Width, Num) ->
     #plot { width = Width, height = 0, num_datasets = Num, min = 999.0e99, max = -999.0e99 }.
 
-plot_adj(A, #plot { min = PMin, max = PMax, width = PWidth } = Plot) ->
+adj(A, #plot { min = PMin, max = PMax, width = PWidth } = Plot) ->
     Min = min(A, PMin),
     Max = max(A, PMax),
     Span = Max - Min,
@@ -54,14 +58,16 @@ plot_adj(A, #plot { min = PMin, max = PMax, width = PWidth } = Plot) ->
         x0 = X0
     }.
 
-plot_dim(Ds, Plot) ->
-    lists:foldl(fun plot_adj/2, Plot,
+dim(Ds, Plot) ->
+    Mean = eministat:mean(Ds),
+    Dev = eministat:std_dev(Ds),
+    lists:foldl(fun adj/2, Plot,
         [eministat_ds:min(Ds),
          eministat_ds:max(Ds),
-         eministat_ds:mean(Ds) - eministat_ds:std_dev(Ds),
-         eministat_ds:mean(Ds) + eministat_ds:std_dev(Ds)]).
+         Mean - Dev,
+         Mean + Dev]).
 
-plot_height(#dataset { points = Ps }, #plot { dx = DX, x0 = X0 } = Plot) ->
+height(#dataset { points = Ps }, #plot { dx = DX, x0 = X0 } = Plot) ->
     F = fun(P, {M, I, J}) ->
         X = trunc((P - X0) / DX),
         case X == I of
@@ -74,7 +80,7 @@ plot_height(#dataset { points = Ps }, #plot { dx = DX, x0 = X0 } = Plot) ->
     {FM, _, _} = lists:foldl(F, {1, -1, 0}, Ps),
     Plot#plot { height = FM }.
 
-plot_histo(#dataset { points = Ps }, Val, #plot { data = Data, dx = DX, x0 = X0 } = Plot) ->
+histo(#dataset { points = Ps }, Val, #plot { data = Data, dx = DX, x0 = X0 } = Plot) ->
     F = fun(P, {PlotMap, I, J}) ->
         X = trunc((P - X0) / DX),
         {II, JJ} = case X == I of
@@ -86,11 +92,11 @@ plot_histo(#dataset { points = Ps }, Val, #plot { data = Data, dx = DX, x0 = X0 
     {PlotMap, _, _} = lists:foldl(F, {Data, -1, 1}, Ps),
     Plot#plot { data = PlotMap }.
 
-plot_bar(#dataset {} = Ds, Pos, #plot { bars = Bars, dx = DX, x0 = X0 } = Plot) ->
+bar(#dataset {} = Ds, Pos, #plot { bars = Bars, dx = DX, x0 = X0 } = Plot) ->
     Bar =
-      try eministat_ds:std_dev(Ds) of _Deviation ->
-            X = trunc(((eministat_ds:mean(Ds) - eministat_ds:std_dev(Ds)) - X0) / DX),
-            M = trunc(((eministat_ds:mean(Ds) + eministat_ds:std_dev(Ds)) - X0) / DX),
+      try eministat_ds:std_dev(Ds) of Dev ->
+            X = trunc(((eministat_ds:mean(Ds) - Dev) - X0) / DX),
+            M = trunc(((eministat_ds:mean(Ds) + Dev) - X0) / DX),
             Base = maps:from_list([{I, "_"} || I <- lists:seq(X+1, M-1)]),
             Base#{ M => "|", X => "|" }
       catch
@@ -109,20 +115,20 @@ push(M, I, J, Val) ->
     end.
 
 
-plot_dump(#plot { span = S }) when S < ?EPSILON ->
+dump(#plot { span = S }) when S < ?EPSILON ->
     {error, zero_span};
-plot_dump(Plot) ->
-    plot_dump_line(Plot),
-    plot_dump_histo(Plot),
-    plot_dump_bars(Plot),
-    plot_dump_line(Plot),
+dump(Plot) ->
+    dump_line(Plot),
+    dump_histo(Plot),
+    dump_bars(Plot),
+    dump_line(Plot),
     ok.
 
-plot_dump_line(#plot { width = W }) ->
+dump_line(#plot { width = W }) ->
     io:format("+~s+\n", [binary:copy(<<"-">>, W)]),
     ok.
 
-plot_dump_histo(#plot { width = W, height = H, data = Data }) ->
+dump_histo(#plot { width = W, height = H, data = Data }) ->
     PC = fun(I, J) ->
         case maps:get({I, J}, Data, undefined) of
             undefined -> " ";
@@ -134,7 +140,7 @@ plot_dump_histo(#plot { width = W, height = H, data = Data }) ->
     io:format("~s", [D]),
     ok.
 
-plot_dump_bars(#plot{ num_datasets = N, bars = Bars, width = W }) ->
+dump_bars(#plot{ num_datasets = N, bars = Bars, width = W }) ->
     DumpBar = fun(B) ->
         case maps:get(B, Bars, undefined) of
             undefined -> ok;

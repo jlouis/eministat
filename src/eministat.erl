@@ -47,7 +47,7 @@ x(CI, #dataset{} = Ds0, L) when is_list(L) ->
         true ->
             valid_ci(CI),
             h([Ds0 | L]),
-            eministat_plot:p(74, [Ds0 | L]),
+            eministat_plot:p([Ds0 | L]),
             r(CI, Ds0, L);
         false ->
             error(badarg)
