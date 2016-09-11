@@ -98,7 +98,6 @@ bar(#dataset {} = Ds, Pos, #plot { bars = Bars, dx = DX, x0 = X0 } = Plot) ->
               X = trunc(((eministat_ds:mean(Ds) - Dev) - X0) / DX),
               M = trunc(((eministat_ds:mean(Ds) + Dev) - X0) / DX),
               Base = case {X+1, M-1} of
-                         {Z, Z} -> #{ Z => "_" };
                          {Lo, Hi} when Lo < Hi ->
                              maps:from_list([{I, "_"} || I <- lists:seq(Lo, Hi)]);
                          {_, _} -> #{}
