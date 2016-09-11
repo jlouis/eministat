@@ -13,8 +13,8 @@ all() ->
     [ligustrum,
      reptiles,
 
-     %% Counterexample bug
-     bug_001].
+     bug_000].
+
 
 groups() -> [].
 
@@ -65,12 +65,13 @@ reptiles(_Config) ->
 
     ok.
 
-bug_001(_Config) ->
-    N = 10,
-    D1 = eministat:s("foldl", fun() -> fact1(N) end, N),
-    D2 = eministat:s("recursion", fun() -> fact2(N) end, N),
-    ok = eministat:x(95.0, D1, D2).
-
+bug_000(_Config) ->
+    D1 = eministat_ds:from_list(foldl, [0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]),
+    D2 = eministat_ds:from_list(recursion, [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]),
+    
+    ok = eministat:x(95.0, D1, D2),
+    ok.
+    
 %% -- INTERNAL FUNCTIONS ------------------------------------
 fact1(N) ->
     lists:foldl(fun(X, Acc) -> X * Acc end, 1, lists:seq(1, N)).
