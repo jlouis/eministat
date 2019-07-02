@@ -107,17 +107,18 @@ s_run(F, G, K) ->
     s_bench(F, G, K).
 
 s_warmup(F) ->
-    erlang:send_after(3000, self(), warmup_over),
-    s_warmup_loop(F).
-    
-s_warmup_loop(F) ->
-    receive
-        warmup_over -> ok
-    after 0 ->
-        F(),
-        F(),
-        F(),
-        s_warmup_loop(F)
+    s_warmup_loop(F, erlang:timestamp()).
+
+s_warmup_loop(F, StartTs) ->
+    Elapsed = timer:now_diff(erlang:timestamp(), StartTs),
+    if
+	Elapsed > 3000000 ->
+	    ok;
+	true ->
+	    F(),
+	    F(),
+	    F(),
+	    s_warmup_loop(F, StartTs)
     end.
 
 s_bench(_F, _G, 0) -> [];
